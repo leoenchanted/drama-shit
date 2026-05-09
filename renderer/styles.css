@@ -521,6 +521,10 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.12);
 }
 
+#drama-skill-status {
+  word-break: break-all;
+}
+
 /* ========== 按钮 ========== */
 .btn {
   display: inline-flex;

@@ -46,62 +46,49 @@ ipcMain.handle('win-maximize', () => {
 ipcMain.handle('win-close', () => mainWindow?.close());
 ipcMain.handle('win-is-maximized', () => mainWindow?.isMaximized() ?? false);
 
-// ==================== Skills 扫描 ====================
+// ==================== drama-text-skills 检测 ====================
 
-function scanSkills(dirPath, depth = 0) {
-  if (depth > 4) return [];
-  const results = [];
-  let entries;
-  try {
-    entries = fs.readdirSync(dirPath, { withFileTypes: true });
-  } catch {
-    return results;
-  }
-  for (const entry of entries) {
-    const full = path.join(dirPath, entry.name);
-    if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-      results.push(...scanSkills(full, depth + 1));
-    } else if (entry.isFile() && entry.name === 'SKILL.md') {
-      const parsed = parseSkillFrontmatter(full);
-      if (parsed) results.push(parsed);
-    }
-  }
-  return results;
+function uniquePaths(paths) {
+  return [...new Set(paths.filter(Boolean))];
 }
 
-function parseSkillFrontmatter(filePath) {
-  try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    const match = raw.match(/^---\s*\n([\s\S]*?)\n---/);
-    if (!match) return null;
-    const fm = {};
-    for (const line of match[1].split('\n')) {
-      const kv = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
-      if (kv) fm[kv[1]] = kv[2].trim();
-    }
-    return {
-      name: fm.name || path.basename(path.dirname(filePath)),
-      description: fm.description || '',
-      path: filePath,
-    };
-  } catch {
-    return null;
-  }
+function getDramaSkillCandidates() {
+  const skillFile = path.join('skills', 'drama-text-skills', 'SKILL.md');
+  const projectSkillFile = path.join('.claude', skillFile);
+  return uniquePaths([
+    path.join(os.homedir(), '.claude', skillFile),
+    path.join(process.cwd(), projectSkillFile),
+    path.join(__dirname, projectSkillFile),
+    path.join(app.getAppPath(), projectSkillFile),
+  ]);
 }
 
-ipcMain.handle('list-skills', async () => {
-  const claudeDir = path.join(os.homedir(), '.claude');
-  const skills = scanSkills(claudeDir);
-  return skills;
-});
+function checkDramaSkillInstall() {
+  const checkedPaths = getDramaSkillCandidates();
+  const foundPath = checkedPaths.find(p => fs.existsSync(p));
+  return {
+    installed: !!foundPath,
+    path: foundPath || null,
+    checkedPaths,
+  };
+}
 
-ipcMain.handle('get-skill-content', async (event, skillPath) => {
-  try {
-    return fs.readFileSync(skillPath, 'utf-8');
-  } catch {
-    return '';
+function getClaudeCwdForSkill(skillPath) {
+  const globalSkillPath = path.join(os.homedir(), '.claude', 'skills', 'drama-text-skills', 'SKILL.md');
+  if (!skillPath || path.normalize(skillPath) === path.normalize(globalSkillPath)) {
+    return process.cwd();
   }
-});
+
+  const marker = `${path.sep}.claude${path.sep}`;
+  const markerIndex = skillPath.indexOf(marker);
+  if (markerIndex > -1) {
+    return skillPath.slice(0, markerIndex);
+  }
+
+  return process.cwd();
+}
+
+ipcMain.handle('check-drama-skill', async () => checkDramaSkillInstall());
 
 // ==================== IPC Handlers ====================
 
@@ -168,6 +155,9 @@ function findGitBash() {
 
 // 检测 Git Bash
 ipcMain.handle('check-git', async () => {
+  if (process.platform !== 'win32') {
+    return { installed: true, path: 'macOS/Linux 不需要 Git Bash', skipped: true };
+  }
   const bashPath = findGitBash();
   return { installed: !!bashPath, path: bashPath };
 });
@@ -303,14 +293,14 @@ ipcMain.handle('convert-subtitle', async (event, arg) => {
   }
 });
 
-// ==================== Claude 持久会话 ====================
-let claudeSession = null;
+// ==================== Claude 调用 ====================
+let activeClaudeProcess = null;
 
 function parseClaudeOutput(stdout) {
   const result = { chineseScript: null, englishScript: null };
-  const scriptMatch = stdout.match(/<<<DRAMA_SCRIPT>>>\n([\s\S]*?)\n<<<END_SCRIPT>>>/);
+  const scriptMatch = stdout.match(/<<<DRAMA_SCRIPT>>>\s*\r?\n([\s\S]*?)\r?\n<<<END_SCRIPT>>>/);
   if (scriptMatch) result.chineseScript = scriptMatch[1].trim();
-  const englishMatch = stdout.match(/<<<DRAMA_ENGLISH>>>\n([\s\S]*?)\n<<<END_ENGLISH>>>/);
+  const englishMatch = stdout.match(/<<<DRAMA_ENGLISH>>>\s*\r?\n([\s\S]*?)\r?\n<<<END_ENGLISH>>>/);
   if (englishMatch) result.englishScript = englishMatch[1].trim();
   return result;
 }
@@ -325,6 +315,20 @@ function getEnvVars() {
   return envVars;
 }
 
+function prepareClaudeEnv() {
+  const envVars = getEnvVars();
+  if (process.platform !== 'win32') return { ok: true, envVars };
+
+  if (!envVars.CLAUDE_CODE_GIT_BASH_PATH) {
+    const bashPath = findGitBash();
+    if (bashPath) envVars.CLAUDE_CODE_GIT_BASH_PATH = bashPath;
+  }
+  if (!envVars.CLAUDE_CODE_GIT_BASH_PATH) {
+    return { ok: false, error: '未找到 Git Bash，请先在步骤1安装 Git for Windows' };
+  }
+  return { ok: true, envVars };
+}
+
 // 解析 stream-json 的一行，返回文本片段或 null
 function parseStreamChunk(line) {
   try {
@@ -332,57 +336,90 @@ function parseStreamChunk(line) {
     if (obj.type === 'content_block_delta' && obj.delta && obj.delta.type === 'text_delta') {
       return obj.delta.text;
     }
+    if (obj.type === 'assistant' && Array.isArray(obj.message?.content)) {
+      return obj.message.content
+        .filter(item => item && item.type === 'text' && typeof item.text === 'string')
+        .map(item => item.text)
+        .join('');
+    }
+    if (obj.type === 'result' && typeof obj.result === 'string') {
+      return obj.result;
+    }
   } catch {}
   return null;
 }
 
-// 阶段一：生成中文文案（stream-json 实时流式）
-ipcMain.handle('start-script-generation', async (event, { subtitleText, dramaName, notes, skillContent }) => {
-  if (claudeSession) {
-    try { claudeSession.process.kill(); } catch {}
-    claudeSession = null;
+function createParserState(event, expectedOutput) {
+  return {
+    fullText: '',
+    chineseSent: false,
+    englishSent: false,
+    append(text) {
+      if (!text) return;
+      this.fullText += text;
+      event.sender.send('session-log', text);
+      this.emitIfReady();
+    },
+    emitIfReady() {
+      const parsed = parseClaudeOutput(this.fullText);
+      if (expectedOutput === 'chinese' && parsed.chineseScript !== null && !this.chineseSent) {
+        this.chineseSent = true;
+        event.sender.send('chinese-script', parsed.chineseScript);
+      }
+      if (expectedOutput === 'english' && parsed.englishScript !== null && !this.englishSent) {
+        this.englishSent = true;
+        event.sender.send('english-translation', parsed.englishScript);
+      }
+    },
+    hasExpectedOutput() {
+      return expectedOutput === 'chinese' ? this.chineseSent : this.englishSent;
+    },
+  };
+}
+
+function consumeJsonLine(line, parserState) {
+  if (!line.trim()) return;
+  const chunk = parseStreamChunk(line);
+  if (chunk !== null) parserState.append(chunk);
+}
+
+function runClaudePrompt(event, prompt, expectedOutput) {
+  if (activeClaudeProcess) {
+    try { activeClaudeProcess.kill(); } catch {}
+    activeClaudeProcess = null;
   }
 
-  const envVars = getEnvVars();
-  if (!envVars.CLAUDE_CODE_GIT_BASH_PATH) {
-    const bashPath = findGitBash();
-    if (bashPath) envVars.CLAUDE_CODE_GIT_BASH_PATH = bashPath;
-  }
-  if (!envVars.CLAUDE_CODE_GIT_BASH_PATH) {
-    event.sender.send('session-error', '未找到 Git Bash，请先在步骤1安装 Git for Windows');
-    return;
+  const skillCheck = checkDramaSkillInstall();
+  if (!skillCheck.installed) {
+    event.sender.send('session-error', '未检测到 drama-text-skills，请先安装后再处理');
+    return Promise.resolve({ success: false, error: 'missing-drama-text-skills' });
   }
 
-  const prompt = buildPrompt(subtitleText, dramaName, notes, skillContent);
+  const envResult = prepareClaudeEnv();
+  if (!envResult.ok) {
+    event.sender.send('session-error', envResult.error);
+    return Promise.resolve({ success: false, error: envResult.error });
+  }
+
+  const parserState = createParserState(event, expectedOutput);
   const claude = spawn('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
     shell: true,
-    env: envVars,
+    cwd: getClaudeCwdForSkill(skillCheck.path),
+    env: envResult.envVars,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
+  activeClaudeProcess = claude;
 
   return new Promise((resolve) => {
-    let fullText = '';
     let lineBuf = '';
     let stderrBuffer = '';
 
     claude.stdout.on('data', (data) => {
       lineBuf += data.toString();
       const lines = lineBuf.split('\n');
-      lineBuf = lines.pop(); // 保留不完整的最后一行
-
+      lineBuf = lines.pop();
       for (const line of lines) {
-        if (!line.trim()) continue;
-        const chunk = parseStreamChunk(line);
-        if (chunk !== null) {
-          fullText += chunk;
-          // 实时推送给渲染进程显示
-          event.sender.send('session-log', chunk);
-          // 检查是否已生成中文脚本
-          const parsed = parseClaudeOutput(fullText);
-          if (parsed.chineseScript !== null) {
-            event.sender.send('chinese-script', parsed.chineseScript);
-          }
-        }
+        consumeJsonLine(line, parserState);
       }
     });
 
@@ -397,108 +434,67 @@ ipcMain.handle('start-script-generation', async (event, { subtitleText, dramaNam
     });
 
     claude.on('close', (code) => {
-      if (claudeSession && claudeSession.process === claude) {
-        claudeSession = null;
+      if (lineBuf.trim()) consumeJsonLine(lineBuf, parserState);
+      parserState.emitIfReady();
+      if (activeClaudeProcess === claude) activeClaudeProcess = null;
+
+      if (code === 0 && !parserState.hasExpectedOutput()) {
+        const name = expectedOutput === 'chinese' ? '中文文案' : '英文翻译';
+        event.sender.send('session-error', `Claude Code 已结束，但没有检测到 drama-text-skills 返回的${name}。请确认 skill 已安装并能被触发。`);
       }
       event.sender.send('session-closed', code);
-      resolve();
+      resolve({ success: code === 0 && parserState.hasExpectedOutput(), code });
     });
 
     claude.on('error', (err) => {
-      claudeSession = null;
+      if (activeClaudeProcess === claude) activeClaudeProcess = null;
       event.sender.send('session-error', err.message);
-      resolve();
+      resolve({ success: false, error: err.message });
     });
-
-    claudeSession = { process: claude, buffer: '' };
 
     claude.stdin.write(prompt);
     claude.stdin.end();
   });
+}
+
+// 阶段一：生成中文文案（stream-json 实时流式）
+ipcMain.handle('start-script-generation', async (event, { subtitleText, dramaName, notes }) => {
+  const prompt = buildScriptPrompt(subtitleText, dramaName, notes);
+  return runClaudePrompt(event, prompt, 'chinese');
 });
 
 // 阶段二：确认文案并翻译
-ipcMain.handle('confirm-and-translate', async (event) => {
-  if (!claudeSession) {
-    return { success: false, error: '没有活跃的会话，请先生成文案' };
+ipcMain.handle('confirm-and-translate', async (event, chineseScript) => {
+  if (!chineseScript || !chineseScript.trim()) {
+    return { success: false, error: '中文文案为空，请先生成或填写中文文案' };
   }
-
-  const envVars2 = getEnvVars();
-  if (!envVars2.CLAUDE_CODE_GIT_BASH_PATH) {
-    const bashPath2 = findGitBash();
-    if (bashPath2) envVars2.CLAUDE_CODE_GIT_BASH_PATH = bashPath2;
-  }
-
-  return new Promise((resolve) => {
-    const claude = spawn('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
-      shell: true,
-      env: envVars2,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let fullText2 = '';
-    let lineBuf2 = '';
-
-    claude.stdout.on('data', (data) => {
-      lineBuf2 += data.toString();
-      const lines = lineBuf2.split('\n');
-      lineBuf2 = lines.pop();
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const chunk = parseStreamChunk(line);
-        if (chunk !== null) {
-          fullText2 += chunk;
-          event.sender.send('session-log', chunk);
-          const parsed = parseClaudeOutput(fullText2);
-          if (parsed.englishScript !== null) {
-            event.sender.send('english-translation', parsed.englishScript);
-          }
-        }
-      }
-    });
-
-    claude.stderr.on('data', (data) => {
-      event.sender.send('session-log', data.toString());
-    });
-
-    claude.on('close', (code) => {
-      resolve({ success: code === 0, code });
-    });
-
-    claude.on('error', (err) => {
-      resolve({ success: false, error: err.message });
-    });
-
-    // 把中文文案 + 翻译指令发过去
-    const previousScript = claudeSession.buffer || '';
-    claude.stdin.write(previousScript + '\n确认，翻译吧\n');
-    claude.stdin.end();
-
-    // 更新 session
-    try { claudeSession.process.kill(); } catch {}
-    claudeSession = { process: claude, buffer: fullText2 };
-  });
+  const prompt = buildTranslationPrompt(chineseScript.trim());
+  return runClaudePrompt(event, prompt, 'english');
 });
 
 // 取消会话
 ipcMain.handle('cancel-session', async () => {
-  if (claudeSession) {
-    try { claudeSession.process.kill(); } catch {}
-    claudeSession = null;
+  if (activeClaudeProcess) {
+    try { activeClaudeProcess.kill(); } catch {}
+    activeClaudeProcess = null;
   }
   return { success: true };
 });
 
-function buildPrompt(subtitleText, dramaName, notes, skillContent) {
-  let prompt = `这些是剧名和对应的字幕文件：\n\n`;
+function buildScriptPrompt(subtitleText, dramaName, notes) {
+  let prompt = `帮我给这个短剧写解说文案。\n\n`;
   prompt += `剧名：${dramaName}\n`;
   if (notes) {
     prompt += `附加信息：${notes}\n`;
   }
-  if (skillContent) {
-    prompt += `\n--- 使用的 Skill 工作流 ---\n\n${skillContent}\n\n--- Skill 结束 ---\n\n`;
-  }
+  prompt += `\n请使用已安装的 drama-text-skills 工作流处理下面的 TXT 字幕内容。\n\n`;
   prompt += `--- 字幕内容 ---\n\n${subtitleText}\n\n--- 结束 ---`;
+  return prompt;
+}
+
+function buildTranslationPrompt(chineseScript) {
+  let prompt = `下面是已经确认的短剧文案脚本，确认，翻译吧。\n\n`;
+  prompt += `请使用 drama-text-skills 的英文翻译阶段处理下面这版中文文案。\n\n`;
+  prompt += `--- 已确认中文文案 ---\n\n${chineseScript}\n\n--- 结束 ---`;
   return prompt;
 }

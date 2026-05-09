@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Claude Code 环境检测
   checkClaude: () => ipcRenderer.invoke('check-claude'),
+  checkDramaSkill: () => ipcRenderer.invoke('check-drama-skill'),
 
   // Git Bash 环境检测 & 安装
   checkGit: () => ipcRenderer.invoke('check-git'),
@@ -38,13 +39,9 @@ contextBridge.exposeInMainWorld('api', {
   // 字幕转换
   convertSubtitle: (filePath) => ipcRenderer.invoke('convert-subtitle', filePath),
 
-  // Skills 列表
-  listSkills: () => ipcRenderer.invoke('list-skills'),
-  getSkillContent: (skillPath) => ipcRenderer.invoke('get-skill-content', skillPath),
-
   // 两阶段脚本生成 & 翻译
   startScriptGeneration: (params) => ipcRenderer.invoke('start-script-generation', params),
-  confirmAndTranslate: () => ipcRenderer.invoke('confirm-and-translate'),
+  confirmAndTranslate: (chineseScript) => ipcRenderer.invoke('confirm-and-translate', chineseScript),
   cancelSession: () => ipcRenderer.invoke('cancel-session'),
   onChineseScript: (callback) => {
     const handler = (_event, data) => callback(data);

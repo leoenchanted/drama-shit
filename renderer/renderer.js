@@ -22,8 +22,8 @@ const state = {
   isProcessing: false,
   currentStep: 1,
   highestReachedStep: 1,
-  selectedSkill: null,
-  skills: [],
+  dramaSkillInstalled: false,
+  dramaSkillPath: null,
   chineseScript: null,
   englishScript: null,
 };
@@ -51,7 +51,7 @@ function switchStep(step) {
   // 切换到相应步骤时触发检测/加载
   if (step === 1) checkClaudeInstall();
   if (step === 2) loadSavedConfig();
-  if (step === 3) loadSkills();
+  if (step === 3) checkDramaSkillInstall();
 }
 
 // 侧边栏点击导航
@@ -62,30 +62,35 @@ document.querySelectorAll('.step-item').forEach(item => {
   });
 });
 
-// ==================== Skills 加载 ====================
-async function loadSkills() {
-  if (state.skills.length > 0) return; // 已加载
-  try {
-    state.skills = await window.api.listSkills();
-    const select = document.getElementById('skill-select');
-    select.innerHTML = '<option value="">不使用 Skill（直接处理）</option>';
-    for (const skill of state.skills) {
-      const opt = document.createElement('option');
-      opt.value = skill.path;
-      opt.textContent = `${skill.name}`;
-      if (skill.description) {
-        opt.title = skill.description;
-      }
-      select.appendChild(opt);
-    }
-  } catch {
-    // 加载失败则留空
-  }
-}
+// ==================== drama-text-skills 检测 ====================
+async function checkDramaSkillInstall() {
+  const statusEl = document.getElementById('drama-skill-status');
+  if (!statusEl) return;
 
-document.getElementById('skill-select').addEventListener('change', (e) => {
-  state.selectedSkill = e.target.value || null;
-});
+  statusEl.className = 'alert alert-warning';
+  statusEl.textContent = '正在检测 drama-text-skills...';
+
+  try {
+    const result = await window.api.checkDramaSkill();
+    state.dramaSkillInstalled = !!result.installed;
+    state.dramaSkillPath = result.path || null;
+
+    if (result.installed) {
+      statusEl.className = 'alert alert-success';
+      statusEl.textContent = `已检测到 drama-text-skills：${result.path}`;
+    } else {
+      statusEl.className = 'alert alert-warning';
+      statusEl.textContent = '未检测到 drama-text-skills。请先安装到 ~/.claude/skills/drama-text-skills 或项目 .claude/skills/drama-text-skills。';
+    }
+  } catch (err) {
+    state.dramaSkillInstalled = false;
+    state.dramaSkillPath = null;
+    statusEl.className = 'alert alert-error';
+    statusEl.textContent = '检测 drama-text-skills 失败：' + err;
+  }
+
+  updateRunButton();
+}
 
 // ==================== 步骤1：环境检测 ====================
 let envChecks = { claude: false, git: false };
@@ -278,6 +283,21 @@ document.getElementById('btn-save-config').addEventListener('click', async () =>
 });
 
 document.getElementById('btn-skip-config').addEventListener('click', () => switchStep(3));
+
+document.getElementById('btn-refresh-skill').addEventListener('click', () => {
+  checkDramaSkillInstall();
+});
+
+document.getElementById('btn-cancel-session').addEventListener('click', async () => {
+  await window.api.cancelSession();
+  state.isProcessing = false;
+  updateRunButton();
+  resetRunButton();
+  const translateBtn = document.getElementById('btn-confirm-translate');
+  translateBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 5"/><path d="M3 17h18"/></svg> 确认文案，翻译为英文`;
+  translateBtn.disabled = !state.chineseScript;
+  document.getElementById('session-status-text').textContent = '已取消当前任务';
+});
 
 // ==================== 步骤3：工作台 ====================
 
@@ -482,7 +502,7 @@ document.getElementById('btn-browse-txt').addEventListener('click', async (e) =>
 function updateRunButton() {
   const btn = document.getElementById('btn-run');
   const dramaName = document.getElementById('drama-name').value.trim();
-  btn.disabled = !state.subtitleText || !dramaName || state.isProcessing;
+  btn.disabled = !state.dramaSkillInstalled || !state.subtitleText || !dramaName || state.isProcessing;
 }
 
 // ========== 运行按钮 — 阶段一：生成中文文案 ==========
@@ -494,6 +514,12 @@ document.getElementById('btn-run').addEventListener('click', async () => {
 
   if (!dramaName) {
     alert('请输入剧名');
+    return;
+  }
+
+  await checkDramaSkillInstall();
+  if (!state.dramaSkillInstalled) {
+    alert('未检测到 drama-text-skills，请先安装后再处理');
     return;
   }
 
@@ -522,11 +548,6 @@ document.getElementById('btn-run').addEventListener('click', async () => {
 
   const btn = document.getElementById('btn-run');
   btn.innerHTML = `<svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg> 处理中...`;
-
-  let skillContent = '';
-  if (state.selectedSkill) {
-    skillContent = await window.api.getSkillContent(state.selectedSkill);
-  }
 
   const unsubLog = window.api.onSessionLog((msg) => {
     logBox.textContent += msg;
@@ -566,7 +587,6 @@ document.getElementById('btn-run').addEventListener('click', async () => {
       subtitleText: state.subtitleText,
       dramaName,
       notes,
-      skillContent,
     });
   } catch (err) {
     statusText.textContent = '启动失败：' + err;
@@ -633,7 +653,7 @@ document.getElementById('btn-confirm-translate').addEventListener('click', async
   });
 
   try {
-    const result = await window.api.confirmAndTranslate();
+    const result = await window.api.confirmAndTranslate(editedScript);
     if (!result.success) {
       clearInterval(timer2);
       document.getElementById('session-status-text').textContent = '翻译失败：' + (result.error || `退出码 ${result.code}`);

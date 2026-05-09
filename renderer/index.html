@@ -248,6 +248,9 @@
         <!-- 区域二：导入 TXT 生成文案 -->
         <div class="card">
           <div class="section-label">导入 TXT 并生成文案</div>
+          <div id="drama-skill-status" class="alert alert-warning">正在检测 drama-text-skills...</div>
+          <button id="btn-refresh-skill" class="btn btn-ghost btn-sm" style="margin-bottom:16px">重新检测 Skill</button>
+
           <div id="drop-txt" class="drop-zone drop-zone-sm">
             <svg class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -275,16 +278,6 @@
           </div>
 
           <div class="form-group">
-            <label for="skill-select">选择 Skill（选填）</label>
-            <div class="input-wrap">
-              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <select id="skill-select">
-                <option value="">不使用 Skill（直接处理）</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
             <label for="drama-notes">附加信息</label>
             <textarea id="drama-notes" rows="2" placeholder="可输入补充说明、处理要求等..."></textarea>
           </div>
@@ -306,6 +299,7 @@
           </div>
           <div style="text-align:left; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:550;">Claude Code 运行日志</div>
           <div id="session-log" class="log-box hidden"></div>
+          <button id="btn-cancel-session" class="btn btn-ghost btn-sm" style="margin-top:12px">取消当前任务</button>
         </div>
 
         <!-- 中文文案面板 -->
