@@ -1,0 +1,31 @@
+{
+  "name": "dramaShit",
+  "version": "1.0.0",
+  "description": "dramaShit - 字幕处理工作台，自动调用 Claude Code 处理字幕文件",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.dramashit.workbench",
+    "productName": "dramaShit",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.png"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*"
+    ]
+  }
+}

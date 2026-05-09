@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>dramaShit</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 自定义标题栏 -->
+  <header id="title-bar">
+    <div class="title-bar-drag">
+      <span class="title-bar-name">dramaShit</span>
+    </div>
+    <div class="title-bar-controls">
+      <button id="btn-minimize" class="win-btn" title="最小化">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="5.5" width="10" height="1" fill="currentColor"/></svg>
+      </button>
+      <button id="btn-maximize" class="win-btn" title="最大化">
+        <svg class="icon-restore" width="12" height="12" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        <svg class="icon-max" width="12" height="12" viewBox="0 0 12 12" style="display:none"><rect x="2" y="0" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="0" y="2" width="8" height="8" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button id="btn-close" class="win-btn win-btn-close" title="关闭">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="app">
+    <!-- 左侧边栏 -->
+    <aside id="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">dramaShit</span>
+          <span class="brand-sub">字幕工作台</span>
+        </div>
+      </div>
+
+      <nav class="step-nav">
+        <div class="step-item" data-step="1">
+          <div class="step-node">
+            <div class="step-circle">
+              <span class="step-num">1</span>
+              <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-info">
+            <span class="step-title">环境检测</span>
+            <span class="step-desc">检测 Claude Code 安装</span>
+          </div>
+        </div>
+
+        <div class="step-item" data-step="2">
+          <div class="step-node">
+            <div class="step-circle">
+              <span class="step-num">2</span>
+              <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-info">
+            <span class="step-title">模型配置</span>
+            <span class="step-desc">配置 API 连接参数</span>
+          </div>
+        </div>
+
+        <div class="step-item" data-step="3">
+          <div class="step-node">
+            <div class="step-circle">
+              <span class="step-num">3</span>
+              <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+          </div>
+          <div class="step-info">
+            <span class="step-title">工作台</span>
+            <span class="step-desc">选择文件并处理</span>
+          </div>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="version">v1.0</span>
+      </div>
+    </aside>
+
+    <!-- 右侧内容区 -->
+    <main id="content">
+      <!-- 步骤1：环境检测 -->
+      <section id="step-1" class="step-panel active">
+        <div class="panel-header">
+          <h2>环境检测</h2>
+          <p>检测必要组件是否安装，缺失可一键部署</p>
+        </div>
+
+        <div class="card">
+          <div class="env-check-list">
+            <!-- Claude Code -->
+            <div class="env-item" id="env-claude">
+              <div class="env-status">
+                <svg class="spinner env-spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+                </svg>
+                <svg class="env-check hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <svg class="env-warn hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="env-info">
+                <span class="env-name">Claude Code</span>
+                <span class="env-desc" id="env-claude-desc">正在检测...</span>
+              </div>
+              <div class="env-actions" id="env-claude-actions"></div>
+            </div>
+
+            <!-- Git Bash -->
+            <div class="env-item" id="env-git">
+              <div class="env-status">
+                <svg class="spinner env-spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+                </svg>
+                <svg class="env-check hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <svg class="env-warn hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="env-info">
+                <span class="env-name">Git Bash</span>
+                <span class="env-desc" id="env-git-desc">正在检测...</span>
+              </div>
+              <div class="env-actions" id="env-git-actions"></div>
+            </div>
+          </div>
+
+          <div id="install-log" class="log-box hidden"></div>
+        </div>
+      </section>
+
+      <!-- 步骤2：模型配置 -->
+      <section id="step-2" class="step-panel">
+        <div class="panel-header">
+          <h2>模型配置</h2>
+          <p>配置 API 连接信息，设置将保存到 Claude Code 全局配置中</p>
+        </div>
+
+        <div class="card">
+          <form id="config-form">
+            <div class="form-group">
+              <label for="token">API 密钥 <span class="required">*</span></label>
+              <div class="input-wrap">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input type="password" id="token" placeholder="输入 API Key" autocomplete="off">
+              </div>
+              <span class="hint">ANTHROPIC_AUTH_TOKEN</span>
+            </div>
+
+            <div class="form-group">
+              <label for="baseUrl">Base URL <span class="required">*</span></label>
+              <div class="input-wrap">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <input type="text" id="baseUrl" placeholder="https://api.deepseek.com/anthropic">
+              </div>
+              <span class="hint">ANTHROPIC_BASE_URL</span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="model">模型名称 <span class="required">*</span></label>
+                <div class="input-wrap">
+                  <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  <input type="text" id="model" placeholder="deepseek-v4-pro[1m]">
+                </div>
+                <span class="hint">ANTHROPIC_MODEL</span>
+              </div>
+              <div class="form-group flex-1">
+                <label for="subModel">Sub-agent 模型</label>
+                <div class="input-wrap">
+                  <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  <input type="text" id="subModel" placeholder="默认同主模型">
+                </div>
+                <span class="hint">CLAUDE_CODE_SUBAGENT_MODEL（可选）</span>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" id="btn-save-config" class="btn btn-accent">保存配置</button>
+              <button type="button" id="btn-skip-config" class="btn btn-ghost">跳过，进入工作台</button>
+            </div>
+          </form>
+          <div id="config-saved-msg" class="alert alert-success hidden">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>配置已保存</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 步骤3：工作台 -->
+      <section id="step-3" class="step-panel">
+        <div class="panel-header">
+          <h2>工作台</h2>
+          <p>第一步：字幕转 TXT → 第二步：导入 TXT 生成文案</p>
+        </div>
+
+        <!-- 区域一：字幕转 TXT -->
+        <div class="card">
+          <div class="section-label">字幕转 TXT</div>
+          <div id="drop-srt" class="drop-zone">
+            <svg class="drop-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p>拖放字幕文件到此处</p>
+            <span class="drop-hint">支持 .srt / .ass / .vtt 格式，可多选</span>
+            <button id="btn-browse-srt" class="btn btn-outline">或点击选择文件</button>
+          </div>
+
+          <div id="srt-file-info" class="file-card hidden">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="srt-file-name"></span>
+            <span id="srt-file-status" class="file-status"></span>
+          </div>
+
+          <button id="btn-convert" class="btn btn-accent btn-lg" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            转换为 TXT
+          </button>
+
+          <div id="convert-results" class="hidden" style="margin-top:16px"></div>
+        </div>
+
+        <!-- 分割线 -->
+        <div class="section-divider">
+          <span>↓ 转换完成后，将 TXT 文件拖入下方处理 ↓</span>
+        </div>
+
+        <!-- 区域二：导入 TXT 生成文案 -->
+        <div class="card">
+          <div class="section-label">导入 TXT 并生成文案</div>
+          <div id="drop-txt" class="drop-zone drop-zone-sm">
+            <svg class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+            <p>拖放 .txt 文件到此处</p>
+            <span class="drop-hint">导入刚才转换好的 TXT 字幕文件，可多选</span>
+            <button id="btn-browse-txt" class="btn btn-outline">或点击选择 TXT 文件</button>
+          </div>
+
+          <div id="txt-file-info" class="file-card hidden">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="txt-file-name"></span>
+            <span id="txt-file-status" class="file-status"></span>
+          </div>
+
+          <div class="form-group" style="margin-top:16px">
+            <label for="drama-name">剧名 <span class="required">*</span></label>
+            <div class="input-wrap">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <input type="text" id="drama-name" placeholder="例如：繁花">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="skill-select">选择 Skill（选填）</label>
+            <div class="input-wrap">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <select id="skill-select">
+                <option value="">不使用 Skill（直接处理）</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="drama-notes">附加信息</label>
+            <textarea id="drama-notes" rows="2" placeholder="可输入补充说明、处理要求等..."></textarea>
+          </div>
+
+          <button id="btn-run" class="btn btn-accent btn-lg" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            确认处理
+          </button>
+        </div>
+
+        <!-- 进度提示 -->
+        <div id="session-status" class="card hidden" style="text-align:center">
+          <div class="status-display" style="padding:20px 0">
+            <svg class="spinner" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+            </svg>
+            <span id="session-status-text" class="status-label">Claude Code 已启动...</span>
+          </div>
+          <div style="text-align:left; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:550;">Claude Code 运行日志</div>
+          <div id="session-log" class="log-box hidden"></div>
+        </div>
+
+        <!-- 中文文案面板 -->
+        <div id="script-panel" class="card hidden">
+          <div class="output-header">
+            <h3>中文文案</h3>
+            <span class="output-badge" id="script-badge">可编辑</span>
+          </div>
+          <textarea id="script-edit" class="script-edit" rows="10" placeholder="等待生成..."></textarea>
+          <div class="script-actions">
+            <button id="btn-confirm-translate" class="btn btn-accent">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 5"/><path d="M3 17h18"/></svg>
+              确认文案，翻译为英文
+            </button>
+            <button id="btn-copy-script" class="btn btn-ghost btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              复制
+            </button>
+          </div>
+        </div>
+
+        <!-- 英文翻译面板 -->
+        <div id="english-panel" class="card hidden">
+          <div class="output-header">
+            <h3>英文翻译</h3>
+            <span class="output-badge done" id="english-badge">翻译完成</span>
+          </div>
+          <pre id="english-output" class="output-content"></pre>
+          <div class="script-actions">
+            <button id="btn-copy-english" class="btn btn-ghost btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              复制
+            </button>
+            <button id="btn-save-english" class="btn btn-ghost btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              保存
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
